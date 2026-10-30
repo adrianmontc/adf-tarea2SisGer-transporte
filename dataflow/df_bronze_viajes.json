@@ -50,6 +50,12 @@
 				},
 				{
 					"name": "union2"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
 				}
 			],
 			"scriptLines": [
@@ -102,7 +108,7 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false) ~> source3",
-				"source1 select(mapColumn(",
+				"derivedColumn1 select(mapColumn(",
 				"          ViajeId = id_viaje,",
 				"          RutaHistoricaId = cod_ruta,",
 				"          VehiculoId = nro_bus,",
@@ -117,7 +123,7 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> select1",
-				"source3 select(mapColumn(",
+				"derivedColumn2 select(mapColumn(",
 				"          ViajeId = id_viaje,",
 				"          RutaHistoricaId = cod_ruta,",
 				"          VehiculoId = nro_bus,",
@@ -134,6 +140,8 @@
 				"     skipDuplicateMapOutputs: true) ~> select2",
 				"select1, source2 union(byName: true)~> union1",
 				"union1, select2 union(byName: true)~> union2",
+				"source1 derive(tipo_metrica = coalesce(regexExtract(toString(id_viaje), '(202[0-9])', 1), regexExtract(toString(fec_servicio), '(202[0-9])', 1), '0')) ~> derivedColumn1",
+				"source3 derive(tipo_metrica = coalesce(regexExtract(toString(id_viaje), '(202[0-9])', 1), regexExtract(toString(fecha_servicio), '(202[0-9])', 1), '0')) ~> derivedColumn2",
 				"union2 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
