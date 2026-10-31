@@ -46,7 +46,7 @@
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
 				"     format: 'table') ~> source1",
-				"source1 filter(!isNull(IncidenteId) && trim(IncidenteId) != '' && !isNull(RutaHistoricaId) && trim(RutaHistoricaId) != '') ~> filter1",
+				"source1 filter(startsWith(IncidenteId, 'IN-2024-') || startsWith(IncidenteId, 'IN-2025-')) ~> filter1",
 				"filter1 derive(IncidenteId = upper(trim(IncidenteId)),",
 				"          RutaHistoricaId = upper(trim(RutaHistoricaId)),",
 				"          EsPrincipal = toInteger(iif(isNull(EsPrincipal) || trim(toString(EsPrincipal)) == '' || lower(trim(toString(EsPrincipal))) == 'false' || trim(toString(EsPrincipal)) == '0', 0, 1))) ~> derivedColumn1",
