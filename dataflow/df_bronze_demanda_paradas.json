@@ -1,5 +1,5 @@
 {
-	"name": "df_demanda_paradas",
+	"name": "df_bronze_demanda_paradas",
 	"properties": {
 		"folder": {
 			"name": "bronze"
