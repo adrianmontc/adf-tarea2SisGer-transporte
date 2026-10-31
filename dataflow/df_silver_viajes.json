@@ -112,8 +112,20 @@
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
 				"     errorHandlingOption: 'allErrors',",
-				"     transactionCommit: 'single',",
-				"     reportSuccessOnError: false) ~> sink1"
+				"     transactionCommit: 'batch',",
+				"     reportSuccessOnError: true,",
+				"     mapColumn(",
+				"          ViajeId,",
+				"          RutaHistoricaId,",
+				"          VehiculoId,",
+				"          FechaServicio,",
+				"          HoraProgramada,",
+				"          HoraSalida,",
+				"          HoraLlegada,",
+				"          ValidacionesTarjeta,",
+				"          KmRecorridos,",
+				"          EstadoViaje",
+				"     )) ~> sink1"
 			]
 		}
 	}
