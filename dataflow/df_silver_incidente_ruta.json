@@ -1,0 +1,74 @@
+{
+	"name": "df_silver_incidente_ruta",
+	"properties": {
+		"folder": {
+			"name": "silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_bronze_incidente_ruta_sql",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_incidente_ruta_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "aggregate1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          AnioFuente as string,",
+				"          IncidenteId as string,",
+				"          RutaHistoricaId as string,",
+				"          EsPrincipal as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 filter(!isNull(IncidenteId) && trim(IncidenteId) != '' && !isNull(RutaHistoricaId) && trim(RutaHistoricaId) != '') ~> filter1",
+				"filter1 derive(IncidenteId = upper(trim(IncidenteId)),",
+				"          RutaHistoricaId = upper(trim(RutaHistoricaId)),",
+				"          EsPrincipal = toInteger(iif(isNull(EsPrincipal) || trim(toString(EsPrincipal)) == '' || lower(trim(toString(EsPrincipal))) == 'false' || trim(toString(EsPrincipal)) == '0', 0, 1))) ~> derivedColumn1",
+				"derivedColumn1 aggregate(groupBy(IncidenteId,",
+				"          RutaHistoricaId),",
+				"     EsPrincipal = first(EsPrincipal)) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          IncidenteId as string,",
+				"          RutaHistoricaId as string,",
+				"          EsPrincipal as boolean",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

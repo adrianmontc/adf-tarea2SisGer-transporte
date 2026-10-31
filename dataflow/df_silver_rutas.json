@@ -15,8 +15,33 @@
 					"name": "source1"
 				}
 			],
-			"sinks": [],
-			"transformations": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_rutas_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filter1",
+					"description": "!isNull(NombreRuta) && trim(NombreRuta) != ''"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "aggregate1"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          AnioFuente as string,",
@@ -32,7 +57,46 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> source1"
+				"     format: 'table') ~> source1",
+				"source1 filter(!isNull(NombreRuta) && trim(NombreRuta) != '') ~> filter1",
+				"filter1 derive(RutaHistoricaId = upper(trim(coalesce(RutaHistoricaId, ''))),",
+				"          CodigoRuta = upper(trim(coalesce(CodigoRuta, ''))),",
+				"          Estado = upper(trim(Estado)),",
+				"          Destino = trim(Destino),",
+				"          Origen = trim(Origen),",
+				"          NombreRuta = trim(NombreRuta)) ~> derivedColumn1",
+				"derivedColumn1 derive(RutaHistoricaId = iif(RutaHistoricaId != '', RutaHistoricaId, iif(instr(NombreRuta, 'R12-N') > 0, 'RH-12-N', iif(instr(NombreRuta, 'R12-S') > 0, 'RH-12-S', iif(lpad(regexExtract(NombreRuta, '([0-9]+)', 1), 2, '0') == '07' && Estado == 'ACTIVA', 'RH-07-NEW', concat('RH-', lpad(regexExtract(NombreRuta, '([0-9]+)', 1), 2, '0')))))),",
+				"          CodigoRuta = iif(instr(NombreRuta, 'R12-N') > 0, 'R12-N', iif(instr(NombreRuta, 'R12-S') > 0, 'R12-S', concat('R-', lpad(regexExtract(NombreRuta, '([0-9]+)', 1), 2, '0'))))) ~> derivedColumn2",
+				"derivedColumn2 derive(VigenciaDesde = coalesce(iif(regexMatch(trim(toString(VigenciaDesde)), '^[0-9]{5}$'), addDays(toDate('1899-12-30', 'yyyy-MM-dd'), toInteger(trim(toString(VigenciaDesde)))), coalesce(toDate(trim(toString(VigenciaDesde)), 'yyyy-MM-dd'), toDate(trim(toString(VigenciaDesde)), 'dd/MM/yyyy'))), toDate('2020-01-01', 'yyyy-MM-dd')),",
+				"          VigenciaHasta = coalesce(iif(regexMatch(trim(toString(VigenciaHasta)), '^[0-9]{5}$'), addDays(toDate('1899-12-30', 'yyyy-MM-dd'), toInteger(trim(toString(VigenciaHasta)))), coalesce(toDate(trim(toString(VigenciaHasta)), 'yyyy-MM-dd'), toDate(trim(toString(VigenciaHasta)), 'dd/MM/yyyy'))), toDate('2025-12-31', 'yyyy-MM-dd'))) ~> derivedColumn3",
+				"derivedColumn3 aggregate(groupBy(RutaHistoricaId),",
+				"     CodigoRuta = first(CodigoRuta),",
+				"          NombreRuta = first(NombreRuta),",
+				"          Origen = first(Origen),",
+				"          Destino = first(Destino),",
+				"          VigenciaDesde = min(VigenciaDesde),",
+				"          VigenciaHasta = max(VigenciaHasta),",
+				"          Estado = first(Estado)) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          RutaHistoricaId as string,",
+				"          CodigoRuta as string,",
+				"          NombreRuta as string,",
+				"          Origen as string,",
+				"          Destino as string,",
+				"          VigenciaDesde as date,",
+				"          VigenciaHasta as date,",
+				"          Estado as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
 			]
 		}
 	}

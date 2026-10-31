@@ -1,0 +1,97 @@
+{
+	"name": "df_silver_incidentes",
+	"properties": {
+		"folder": {
+			"name": "silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_bronze_incidentes_sql",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_incidentes_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "aggregate1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          AnioFuente as string,",
+				"          IncidenteId as string,",
+				"          TipoIncidente as string,",
+				"          Severidad as string,",
+				"          FechaHoraInicio as string,",
+				"          FechaHoraFin as string,",
+				"          FechaHoraRegistro as string,",
+				"          VehiculoId as string,",
+				"          Descripcion as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 filter(!isNull(IncidenteId) && trim(IncidenteId) != '') ~> filter1",
+				"filter1 derive(IncidenteId = upper(trim(IncidenteId)),",
+				"          TipoIncidente = upper(trim(coalesce(TipoIncidente, 'AVERIA'))),",
+				"          Severidad = upper(trim(coalesce(Severidad, 'BAJA'))),",
+				"          VehiculoId = iif(isNull(VehiculoId) || trim(VehiculoId) == '' || trim(VehiculoId) == 'NULL', 'V-000', upper(trim(VehiculoId))),",
+				"          Descripcion = trim(coalesce(Descripcion, 'Sin descripcion'))) ~> derivedColumn1",
+				"derivedColumn1 derive(FechaHoraInicio = toTimestamp(FechaHoraInicio, 'dd/MM/yyyy HH:mm'),",
+				"          FechaHoraFin = toTimestamp(FechaHoraFin, 'dd/MM/yyyy HH:mm'),",
+				"          FechaHoraRegistro = toTimestamp(concat(FechaHoraRegistro, ' 00:00'), 'dd/MM/yyyy HH:mm')) ~> derivedColumn2",
+				"derivedColumn2 aggregate(groupBy(IncidenteId),",
+				"     TipoIncidente = first(TipoIncidente),",
+				"          Severidad = first(Severidad),",
+				"          FechaHoraInicio = min(FechaHoraInicio),",
+				"          FechaHoraFin = max(FechaHoraFin),",
+				"          FechaHoraRegistro = max(FechaHoraRegistro),",
+				"          VehiculoId = first(VehiculoId),",
+				"          Descripcion = first(Descripcion)) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          IncidenteId as string,",
+				"          TipoIncidente as string,",
+				"          Severidad as string,",
+				"          FechaHoraInicio as timestamp,",
+				"          FechaHoraFin as timestamp,",
+				"          FechaHoraRegistro as timestamp,",
+				"          VehiculoId as string,",
+				"          Descripcion as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

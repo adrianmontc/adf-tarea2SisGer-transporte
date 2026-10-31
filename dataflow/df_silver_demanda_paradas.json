@@ -1,0 +1,102 @@
+{
+	"name": "df_silver_demanda_paradas",
+	"properties": {
+		"folder": {
+			"name": "silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "dw_bronze_demanda_paradas_sql",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dw_silver_demanda_paradas_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "aggregate1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          AnioFuente as string,",
+				"          DemandaId as string,",
+				"          FechaServicio as string,",
+				"          RutaHistoricaId as string,",
+				"          ParadaHistoricaId as string,",
+				"          Franja as string,",
+				"          ValidacionesTarjeta as string,",
+				"          Descensos as string,",
+				"          DemandaNoAtendida as string,",
+				"          Metodo as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 filter(!isNull(FechaServicio) && trim(FechaServicio) != '' && !isNull(ParadaHistoricaId) && trim(ParadaHistoricaId) != '') ~> filter1",
+				"filter1 derive(DemandaId = upper(trim(iif(isNull(DemandaId) || trim(toString(DemandaId)) == '' || trim(toString(DemandaId)) == 'NULL', concat('DM-', toString(FechaServicio), '-', RutaHistoricaId, '-', ParadaHistoricaId), DemandaId))),",
+				"          RutaHistoricaId = upper(trim(iif(instr(RutaHistoricaId, 'RH-') > 0, RutaHistoricaId, concat('RH-', lpad(regexExtract(RutaHistoricaId, '([0-9]+)', 1), 2, '0'))))),",
+				"          ParadaHistoricaId = upper(trim(iif(instr(ParadaHistoricaId, 'P') > 0, ParadaHistoricaId, concat('P', lpad(regexExtract(ParadaHistoricaId, '([0-9]+)', 1), 3, '0'))))),",
+				"          Franja = upper(trim(coalesce(Franja, '06:00-09:00'))),",
+				"          Metodo = upper(trim(coalesce(Metodo, 'VALIDACION_TARJETA')))) ~> derivedColumn1",
+				"derivedColumn1 derive(FechaServicio = coalesce(iif(regexMatch(trim(toString(FechaServicio)), '^[0-9]{5}$'), addDays(toDate('1899-12-30', 'yyyy-MM-dd'), toInteger(trim(toString(FechaServicio)))), coalesce(toDate(trim(toString(FechaServicio)), 'yyyy-MM-dd'), toDate(trim(toString(FechaServicio)), 'dd/MM/yyyy'))), toDate('2024-07-13', 'yyyy-MM-dd')),",
+				"          ValidacionesTarjeta = toInteger(iif(isNull(ValidacionesTarjeta) || trim(toString(ValidacionesTarjeta)) == '', 0, toInteger(trim(toString(ValidacionesTarjeta))))),",
+				"          Descensos = toInteger(iif(isNull(Descensos) || trim(toString(Descensos)) == '', 0, toInteger(trim(toString(Descensos))))),",
+				"          DemandaNoAtendida = toInteger(iif(isNull(DemandaNoAtendida) || trim(toString(DemandaNoAtendida)) == '', 0, toInteger(trim(toString(DemandaNoAtendida)))))) ~> derivedColumn2",
+				"derivedColumn2 aggregate(groupBy(DemandaId),",
+				"     FechaServicio = min(FechaServicio),",
+				"          RutaHistoricaId = first(RutaHistoricaId),",
+				"          ParadaHistoricaId = first(ParadaHistoricaId),",
+				"          Franja = first(Franja),",
+				"          ValidacionesTarjeta = max(ValidacionesTarjeta),",
+				"          Descensos = max(Descensos),",
+				"          DemandaNoAtendida = max(DemandaNoAtendida),",
+				"          Metodo = first(Metodo)) ~> aggregate1",
+				"aggregate1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          AnioFuente as string,",
+				"          DemandaId as string,",
+				"          FechaServicio as string,",
+				"          RutaHistoricaId as string,",
+				"          ParadaHistoricaId as string,",
+				"          Franja as string,",
+				"          ValidacionesTarjeta as string,",
+				"          Descensos as string,",
+				"          DemandaNoAtendida as string,",
+				"          Metodo as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}
